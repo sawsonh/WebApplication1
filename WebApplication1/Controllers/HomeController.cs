@@ -17,6 +17,7 @@ namespace WebApplication1.Controllers
 
         public IActionResult Index()
         {
+            //throw new Exception("test error");
             return View();
         }
     }
