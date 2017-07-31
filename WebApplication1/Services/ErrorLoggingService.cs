@@ -5,21 +5,21 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
-namespace WebApplication1.Middlewares
+namespace WebApplication1.Services
 {
-    public static class ErrorLoggingMiddlewareExtensions
+    public static class ErrorLoggingServiceExtensions
     {
         public static IApplicationBuilder UseErrorLogging(this IApplicationBuilder builder)
         {
-            return builder.UseMiddleware<ErrorLoggingMiddleware>();
+            return builder.UseMiddleware<ErrorLoggingService>();
         }
     }
 
-    public class ErrorLoggingMiddleware
+    public class ErrorLoggingService
     {
         private readonly RequestDelegate _next;
 
-        public ErrorLoggingMiddleware(RequestDelegate next)
+        public ErrorLoggingService(RequestDelegate next)
         {
             _next = next;
         }

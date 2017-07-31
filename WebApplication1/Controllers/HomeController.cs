@@ -14,6 +14,7 @@ namespace WebApplication1.Controllers
         // AdministratorPolicy AND EmployeeId
         //[Authorize(Policy = "AdministratorPolicy")]
         //[Authorize(Policy = "EmployeeId")]
+        [Authorize(Policy = "HasKey")]
 
         public IActionResult Index()
         {

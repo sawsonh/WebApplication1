@@ -1,19 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
+using System.Security.Principal;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Authentication;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
-using WebApplication1.Middlewares;
+using WebApplication1.Services;
 
 namespace WebApplication1
 {
@@ -46,7 +52,9 @@ namespace WebApplication1
             {
                 options.AddPolicy("AdministratorOnly", policy => policy.RequireRole("Administrator"));
                 options.AddPolicy("EmployeeId", policy => policy.RequireClaim("EmployeeId", "123", "456")); // 123 or 456
+                options.AddPolicy("HasKey", policy => policy.RequireClaim("key1", "value1")); // 123 or 456
             });
+            
             services.AddMvc(config =>
             {
                 var policy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
@@ -77,7 +85,20 @@ namespace WebApplication1
             app.UseCookieAuthentication(new CookieAuthenticationOptions
             {
                 AuthenticationScheme = "Cookies",
-                AutomaticAuthenticate = true
+                AutomaticAuthenticate = true,
+                ExpireTimeSpan = TimeSpan.FromHours(1),
+                Events = new CookieAuthenticationEvents
+                {
+                    OnSigningIn = ctx =>
+                    {
+                        // Lookup user and get their custom roles/claims, and update token
+                        var identity = (ClaimsIdentity)ctx.Principal.Identity;
+                        identity.AddClaim(new Claim("key1", "value1"));
+                        identity.AddClaim(new Claim("key2", "value2"));
+                        identity.AddClaim(new Claim("key3", "value3"));
+                        return Task.FromResult(0);
+                    }
+                }
             });
             app.UseOpenIdConnectAuthentication(new OpenIdConnectOptions
             {
@@ -97,7 +118,7 @@ namespace WebApplication1
                 },
                 SaveTokens = true
             });
-
+            
             app.UseMvc(routes =>
             {
                 routes.MapRoute(
@@ -106,4 +127,5 @@ namespace WebApplication1
             });
         }
     }
+    
 }
