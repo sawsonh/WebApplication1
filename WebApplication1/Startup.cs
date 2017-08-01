@@ -4,6 +4,11 @@ using System.Linq;
 using System.Security.Claims;
 using System.Security.Principal;
 using System.Threading.Tasks;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Demo.Core.Constants;
+using Demo.Core.Services;
+using Demo.Infrastructure.DependencyResolution;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -19,13 +24,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
-using WebApplication1.Services;
 
-namespace WebApplication1
+namespace Demo.UI.AspNetCore
 {
     public class Startup
     {
         public IConfigurationRoot Configuration { get; }
+        public IContainer Container { get; set; }
 
         public Startup(IHostingEnvironment env)
         {
@@ -45,14 +50,13 @@ namespace WebApplication1
 
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
-        public void ConfigureServices(IServiceCollection services)
+        public IServiceProvider ConfigureServices(IServiceCollection services)
         {
             // Define policies
             services.AddAuthorization(options =>
             {
-                options.AddPolicy("AdministratorOnly", policy => policy.RequireRole("Administrator"));
-                options.AddPolicy("EmployeeId", policy => policy.RequireClaim("EmployeeId", "123", "456")); // 123 or 456
-                options.AddPolicy("HasKey", policy => policy.RequireClaim("key1", "value1")); // 123 or 456
+                options.AddPolicy("AdministratorOnly",
+                    policy => policy.RequireClaim("UserGroup", "Administrator", "Admin"));
             });
             
             services.AddMvc(config =>
@@ -60,13 +64,20 @@ namespace WebApplication1
                 var policy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
                 config.Filters.Add(new AuthorizeFilter(policy));
             });
+
+            // Register Autofac DI
+            var builder = new ContainerBuilder();
+            AutofacResolution.RegisterTypes(builder, Configuration);
+            builder.Populate(services);
+            Container = builder.Build();
+            return Container.Resolve<IServiceProvider>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
             loggerFactory.AddConsole(Configuration.GetSection("Logging"));
-            loggerFactory.AddConsole();
+            loggerFactory.AddDebug();
 
             if (env.IsDevelopment())
             {
@@ -82,6 +93,8 @@ namespace WebApplication1
 
             app.UseStaticFiles();
 
+            var cfgSvc = Container.Resolve<IConfigService>();
+
             app.UseCookieAuthentication(new CookieAuthenticationOptions
             {
                 AuthenticationScheme = "Cookies",
@@ -91,11 +104,11 @@ namespace WebApplication1
                 {
                     OnSigningIn = ctx =>
                     {
-                        // Lookup user and get their custom roles/claims, and update token
                         var identity = (ClaimsIdentity)ctx.Principal.Identity;
-                        identity.AddClaim(new Claim("key1", "value1"));
-                        identity.AddClaim(new Claim("key2", "value2"));
-                        identity.AddClaim(new Claim("key3", "value3"));
+                        foreach (var claim in Container.Resolve<IUserService>().GetClaims(identity))
+                        {
+                            identity.AddClaim(claim);
+                        }
                         return Task.FromResult(0);
                     }
                 }
@@ -104,10 +117,10 @@ namespace WebApplication1
             {
                 AuthenticationScheme = "oidc",
                 SignInScheme = "Cookies",
-                Authority = Configuration["Authority"],
                 ResponseType = OpenIdConnectResponseType.Code,
-                ClientId = Configuration["ClientId"],
-                ClientSecret = Configuration["ClientSecret"],
+                Authority = cfgSvc.GetValue<string>(ConfigurationKeys.Authority),
+                ClientId = cfgSvc.GetValue<string>(ConfigurationKeys.ClientId),
+                ClientSecret = cfgSvc.GetValue<string>(ConfigurationKeys.ClientSecret),
                 // Get all user info
                 GetClaimsFromUserInfoEndpoint = true,
                 // Explicitly define what user info you want

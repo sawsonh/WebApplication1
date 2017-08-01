@@ -2,26 +2,29 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Demo.Core.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
-namespace WebApplication1.Services
+namespace Demo.UI.AspNetCore
 {
-    public static class ErrorLoggingServiceExtensions
+    public static class LoggingMiddlewareExtensions
     {
         public static IApplicationBuilder UseErrorLogging(this IApplicationBuilder builder)
         {
-            return builder.UseMiddleware<ErrorLoggingService>();
+            return builder.UseMiddleware<LoggingMiddleware>();
         }
     }
 
-    public class ErrorLoggingService
+    public class LoggingMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly ILoggingService _logSvc;
 
-        public ErrorLoggingService(RequestDelegate next)
+        public LoggingMiddleware(RequestDelegate next, ILoggingService logSvc)
         {
             _next = next;
+            _logSvc = logSvc;
         }
 
         public async Task Invoke(HttpContext context)
@@ -32,7 +35,7 @@ namespace WebApplication1.Services
             }
             catch (Exception e)
             {
-                System.Diagnostics.Debug.WriteLine($"The following error happened: {e.Message}");
+                _logSvc.Error(e, $"The following error happened: {e.Message}");
             }
         }
     }

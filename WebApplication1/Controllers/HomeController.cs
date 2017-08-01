@@ -5,20 +5,13 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace WebApplication1.Controllers
+namespace Demo.UI.AspNetCore.Controllers
 {
     public class HomeController : Controller
     {
-        //[Authorize]
-        //[Authorize(Roles = "Administrator")]
-        // AdministratorPolicy AND EmployeeId
-        //[Authorize(Policy = "AdministratorPolicy")]
-        //[Authorize(Policy = "EmployeeId")]
-        [Authorize(Policy = "HasKey")]
-
+        [Authorize(Policy = "AdministratorOnly")]
         public IActionResult Index()
         {
-            //throw new Exception("test error");
             return View();
         }
     }
